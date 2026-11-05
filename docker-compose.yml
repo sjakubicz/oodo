@@ -1,0 +1,82 @@
+x-app: &app
+  build:
+    context: .
+    dockerfile: app/Dockerfile
+  environment:
+    DJANGO_SECRET_KEY: local-demo-only
+    DJANGO_DEBUG: "1"
+    DJANGO_ALLOWED_HOSTS: "*"
+    DJANGO_SUPERUSER_USERNAME: admin
+    DJANGO_SUPERUSER_PASSWORD: admin
+    DJANGO_SUPERUSER_EMAIL: admin@example.com
+    POSTGRES_HOST: db
+    POSTGRES_DB: bridge
+    POSTGRES_USER: odoo
+    POSTGRES_PASSWORD: odoo
+    CELERY_BROKER_URL: redis://redis:6379/0
+    ODOO_URL: http://odoo:8069
+    ODOO_DB: odoo
+    ODOO_LOGIN: admin
+    ODOO_PASSWORD: admin
+    KSEF_URL: http://ksef:8001
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_started
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: bridge
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "odoo", "-d", "bridge"]
+      interval: 2s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+
+  odoo:
+    image: odoo:18.0
+    command: ["odoo", "-d", "odoo", "-i", "ksef_number", "--without-demo=all"]
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: odoo
+    ports:
+      - "8069:8069"
+    volumes:
+      - ./addons:/mnt/extra-addons
+      - odoo-data:/var/lib/odoo
+    depends_on:
+      db:
+        condition: service_healthy
+
+  ksef:
+    build:
+      context: .
+      dockerfile: ksef_mock/Dockerfile
+    environment:
+      FAILURE_RATE: ${KSEF_FAILURE_RATE:-0.3}
+    ports:
+      - "8001:8001"
+
+  web:
+    <<: *app
+    command: sh -c "python manage.py migrate && (python manage.py createsuperuser --noinput || true) && python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+
+  worker:
+    <<: *app
+    command: celery -A bridge worker --beat --loglevel=info
+
+volumes:
+  db-data:
+  odoo-data:

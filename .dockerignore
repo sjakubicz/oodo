@@ -1,0 +1,8 @@
+.venv
+.vscode
+.git
+.ruff_cache
+.pytest_cache
+**/__pycache__
+addons
+KNOWLEDGE_BASE.md

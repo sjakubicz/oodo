@@ -1,0 +1,40 @@
+[dependency-groups]
+dev = [
+    "celery-types>=0.23",
+    "django-stubs~=5.2.0",
+    "ruff>=0.14",
+    { include-group = "test" },
+]
+test = [
+    "pytest~=8.3",
+    "pytest-django~=4.9",
+]
+
+[tool.uv.workspace]
+members = ["app", "ksef_mock"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "RUF", "DJ", "PT"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["bridge", "invoices"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__manifest__.py" = ["B018"]
+"**/migrations/*.py" = ["E501", "RUF012"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
+exclude = ["**/__pycache__", ".venv"]
+executionEnvironments = [
+    { root = "addons", reportMissingImports = false, reportUnusedExpression = false },
+    { root = "app" },
+    { root = "ksef_mock" },
+]
